@@ -189,7 +189,7 @@
                 </svg>
             </div>
             <h1>Masuk Ujian</h1>
-            <p>Isi nama dan nomor ujian yang diberikan oleh guru.</p>
+            <p>Isi Nama dan NISN kamu.</p>
         </header>
 
         <form class="form-card" id="form-login" onsubmit="return prosesLogin(event)">
@@ -199,7 +199,7 @@
             </div>
 
             <div class="field">
-                <label for="nomor_ujian">Nomor Ujian</label>
+                <label for="nomor_ujian">NISN (Nomor Induk Siswa Nasional)</label>
                 <input type="password" id="nomor_ujian" inputmode="numeric" placeholder="Contoh: 231045" autocomplete="off" required>
             </div>
 
@@ -231,7 +231,7 @@
 
           Key ("231045") adalah nomor ujian, dipakai sebagai "password".
         */
-        const FIREBASE_URL = "https://NAMA-PROJECT-KAMU.firebaseio.com";
+        const FIREBASE_URL = "https://ujian-smk-6c744-default-rtdb.firebaseio.com/";
 
         function tampilkanError(pesan) {
             const kotak = document.getElementById('pesan-error');
