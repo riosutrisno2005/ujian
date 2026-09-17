@@ -260,7 +260,7 @@
                 </svg>
             </div>
             <h1>Masuk Guru</h1>
-            <p>Isi nama lengkap dan password akun guru Anda.</p>
+            <p>Isi nama lengkap dan password akun Anda.</p>
         </header>
 
         <form class="form-card" id="form-login" onsubmit="return prosesLogin(event)">
@@ -288,7 +288,7 @@
                     <polyline points="20 6 9 17 4 12"></polyline>
                 </svg>
             </div>
-            <h2 class="popup-title">Selamat, <span id="popup-nama"></span>!<br>Telah Berhasil Login</h2>
+            <h2 class="popup-title">Selamat, <span id="popup-nama"></span>!<br>Anda Telah Berhasil Login</h2>
             
             <p class="popup-message" id="popup-pesan">
                 Anda login sebagai <strong>Guru</strong>. Klik tombol <strong>OK</strong> untuk masuk ke halaman pengelolaan soal.
@@ -303,7 +303,7 @@
         // GANTI dengan URL Firebase Anda (URL yang muncul di browser
         // saat Anda buka Realtime Database, TANPA tanda "/" di akhir)
         // ==========================================================
-        const FIREBASE_URL = "https://login-guru-57f19-default-rtdb.firebaseio.com";
+        const FIREBASE_URL = "https://login-guru-57f19-default-rtdb.firebaseio.com/";
 
         function tampilkanError(pesan) {
             const kotak = document.getElementById('pesan-error');
