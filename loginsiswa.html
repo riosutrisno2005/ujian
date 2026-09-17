@@ -274,7 +274,7 @@
                 const data = await response.json();
 
                 if (!data) {
-                    tampilkanError("Nomor ujian tidak ditemukan. Periksa kembali nomor kamu.");
+                    tampilkanError("NISN tidak ditemukan. Periksa kembali nomor kamu.");
                     tombol.disabled = false;
                     tombol.textContent = "Masuk";
                     return false;
@@ -283,7 +283,7 @@
                 const namaTercocok = data.nama.trim().toLowerCase() === nama.toLowerCase();
 
                 if (!namaTercocok) {
-                    tampilkanError("Nama tidak cocok dengan nomor ujian ini.");
+                    tampilkanError("Nama tidak cocok dengan NISN yang kamu input.");
                     tombol.disabled = false;
                     tombol.textContent = "Masuk";
                     return false;
