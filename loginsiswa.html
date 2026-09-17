@@ -265,7 +265,7 @@
                 </svg>
             </div>
             <h1>Masuk Ujian</h1>
-            <p>Isi nama dan nomor ujian yang diberikan oleh guru.</p>
+            <p>Isi nama dan NISN kamu di tempat yang sudah disediakan.</p>
         </header>
 
         <form class="form-card" id="form-login" onsubmit="return prosesLogin(event)">
@@ -275,7 +275,7 @@
             </div>
 
             <div class="field">
-                <label for="nomor_ujian">Nomor Ujian</label>
+                <label for="nomor_ujian">NISN (Nomor Induk siswa Naional)</label>
                 <input type="password" id="nomor_ujian" inputmode="numeric" placeholder="Contoh: 231045" autocomplete="off" required>
             </div>
 
@@ -301,7 +301,7 @@
             <!-- EDIT TEKS PEMBERITAHUAN DI BAWAH INI -->
             <!-- =================== -->
             <p class="popup-message" id="popup-pesan">
-                Silakan klik tombol <strong>OK</strong> untuk mulai mengerjakan soal ujian. Pastikan koneksi internet stabil dan kerjakan dengan jujur.
+                Silakan klik tombol <strong>OK</strong> untuk mulai mengerjakan soal ujian. Kamu mengerjakan ujian dengan jujur dan ikuti segala peraturan dalam ujian ini.
             </p>
             <!-- =================== -->
 
@@ -313,7 +313,7 @@
         /*
           GANTI dengan URL Firebase Realtime Database kamu sendiri.
         */
-        const FIREBASE_URL = "https://NAMA-PROJECT-KAMU.firebaseio.com";
+        const FIREBASE_URL = "https://ujian-smk-6c744-default-rtdb.firebaseio.com/";
 
         function tampilkanError(pesan) {
             const kotak = document.getElementById('pesan-error');
