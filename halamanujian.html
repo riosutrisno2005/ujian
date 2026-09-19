@@ -62,7 +62,6 @@
     .tab-nav { display: flex; gap: 6px; background: rgba(255,255,255,0.55); padding: 6px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.8); }
     .tab-nav button { padding: 10px; border: none; border-radius: 10px; font-weight: 600; font-size: 13px; background: transparent; color: #14532d; cursor: pointer; flex: 1; }
     .tab-nav button.aktif { background: #1b5e20; color: #fff; }
-    /* Grid semua soal */
     .grid-soal { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 4px; }
     .nomor-soal {
         aspect-ratio: 1 / 1;
@@ -112,9 +111,11 @@
         <div class="card">
             <h3 style="color:#0f172a;" id="judul-mapel-mulai"></h3>
             <div class="peringatan">
-                📴 <b>Matikan koneksi internet / data kamu sekarang</b> (Wi-Fi dan data seluler). Ujian ini dikerjakan offline untuk mencegah kecurangan.
+                📴 <b>Matikan koneksi internet / data kamu sekarang</b> (Wi-Fi dan data seluler). Ujian ini dikerjakan secara offline untuk mencegah kecurangan.
                 <br><br>
                 Kalau internet menyala lagi saat ujian berlangsung, kamu akan <b>dikembalikan ke soal nomor 1</b>.
+                <br><br>
+                ⚠️ <b>Jangan keluar dari aplikasi ini selama ujian.</b> Kalau kamu keluar lebih dari 5 detik, semua jawaban akan dihapus dan kamu mulai dari soal nomor 1.
             </div>
             <button class="btn-utama" onclick="mulaiMengerjakan()">Internet Sudah Dimatikan, Mulai</button>
         </div>
@@ -191,7 +192,6 @@
     </div>
 </div>
 
-<!-- POPUP LIHAT SEMUA SOAL -->
 <div class="popup-overlay" id="popup-semua-soal">
     <div class="popup-box">
         <h3>📋 Daftar Semua Soal</h3>
@@ -206,7 +206,6 @@
     </div>
 </div>
 
-<!-- POPUP SOAL BELUM LENGKAP -->
 <div class="popup-overlay" id="popup-belum-lengkap">
     <div class="popup-box">
         <h3>⚠️ Masih Ada Soal Kosong</h3>
@@ -223,16 +222,19 @@
 <div class="kunci-layar" id="kunci-curang">
     <h2 id="judul-kunci">⚠️ Terdeteksi Pelanggaran</h2>
     <p id="pesan-kunci"></p>
-    <button class="btn-utama" id="btn-kunci" style="width:auto;padding:14px 24px;background:#fff;color:#b91c1c;" onclick="aksiKunci()">Lanjutkan dari Soal 1</button>
+    <button class="btn-utama" id="btn-kunci" style="width:auto;padding:14px 24px;background:#fff;color:#b91c1c;" onclick="aksiKunci()">Mulai Ulang dari Soal 1</button>
 </div>
 
 <script>
     const FIREBASE_URL = "https://ujian-smk-6c744-default-rtdb.firebaseio.com";
+    const BATAS_DETIK_KELUAR = 5; // ubah sesuai kebutuhan (dalam detik)
+
     let namaSiswa = "", nisnSiswa = "", kelasSiswa = "";
     let semuaMapel = [], daftarKelas = [];
     let mapelDipilih = null, daftarSoal = [], jawabanSiswa = {};
     let indexSoalSekarang = 0, sedangUjian = false;
-    let mapelUntukUlang = null, monitorInterval = null, aksiKunciSaatIni = 'curang';
+    let mapelUntukUlang = null, monitorInterval = null, aksiKunciSaatIni = 'online';
+    let timestampKeluar = null;
 
     let resolveKonfirmasi = null;
     function konfirmasi(pesan, judul, labelOk) {
@@ -256,23 +258,14 @@
         return [];
     }
 
-    // ==== UTIL JAWABAN ====
     function sudahDijawab(s) {
         const j = jawabanSiswa[s.id];
         if (j == null) return false;
         if (typeof j === 'string') return j.trim() !== '';
         return true;
     }
-    function hitungTerjawab() {
-        let n = 0;
-        daftarSoal.forEach(s => { if (sudahDijawab(s)) n++; });
-        return n;
-    }
-    function daftarIndexKosong() {
-        const arr = [];
-        daftarSoal.forEach((s, i) => { if (!sudahDijawab(s)) arr.push(i); });
-        return arr;
-    }
+    function hitungTerjawab() { let n = 0; daftarSoal.forEach(s => { if (sudahDijawab(s)) n++; }); return n; }
+    function daftarIndexKosong() { const arr = []; daftarSoal.forEach((s, i) => { if (!sudahDijawab(s)) arr.push(i); }); return arr; }
     function updateHitungTerjawab() {
         const el = document.getElementById('hitung-terjawab');
         if (el) el.textContent = `(${hitungTerjawab()}/${daftarSoal.length})`;
@@ -465,35 +458,127 @@
         } catch (e) { alert('Gagal memuat soal.'); }
     }
 
+    // ==========================================================
+    // MULAI UJIAN
+    // ==========================================================
     function mulaiMengerjakan() {
+        if (navigator.onLine === true) {
+            alert('⚠️ Internet kamu masih nyala!\n\nMatikan Wi-Fi DAN data seluler dulu, lalu klik tombol lagi.');
+            return;
+        }
         sedangUjian = true;
+        timestampKeluar = null;
         pindahLayar('layar-ujian');
         tampilkanSoal();
-        mulaiMonitorStatusMapel();
+        mulaiMonitorPelanggaran();
     }
 
-    function mulaiMonitorStatusMapel() {
+    // ==========================================================
+    // MONITOR PELANGGARAN (2 lapisan)
+    // Lapisan 1: cek navigator.onLine tiap 2 detik (saat halaman aktif)
+    // Lapisan 2: hitung durasi keluar aplikasi (visibilitychange)
+    // ==========================================================
+    function mulaiMonitorPelanggaran() {
         if (monitorInterval) clearInterval(monitorInterval);
-        monitorInterval = setInterval(async () => {
-            if (!sedangUjian || !mapelDipilih) return;
-            try {
-                const r = await fetch(`${FIREBASE_URL}/mapel/${mapelDipilih.id}/status_aktif.json`);
-                const aktif = await r.json();
-                if (aktif === false) {
-                    const r2 = await fetch(`${FIREBASE_URL}/pengajuan_ulang/${mapelDipilih.id}/${nisnSiswa}.json`);
-                    const ulang = await r2.json();
-                    if (!ulang || ulang.status !== 'disetujui') {
-                        sedangUjian = false;
-                        clearInterval(monitorInterval);
-                        aksiKunciSaatIni = 'nonaktif';
-                        document.getElementById('judul-kunci').textContent = '🛑 Ujian Dibatalkan';
-                        document.getElementById('pesan-kunci').textContent = 'Ujian ini telah dinonaktifkan oleh admin.';
-                        document.getElementById('btn-kunci').textContent = 'Kembali ke Daftar Ujian';
-                        document.getElementById('kunci-curang').classList.add('tampil');
-                    }
-                }
-            } catch (e) {}
-        }, 15000);
+        monitorInterval = setInterval(() => {
+            if (!sedangUjian) return;
+            if (navigator.onLine === true) {
+                tanganiPelanggaran('online_saat_aktif');
+            }
+        }, 2000);
+    }
+
+    // Event: internet menyala (hanya trigger saat halaman aktif)
+    window.addEventListener('online', function () {
+        if (sedangUjian) tanganiPelanggaran('online_saat_aktif');
+    });
+
+    // Event: keluar / masuk aplikasi
+    document.addEventListener('visibilitychange', function () {
+        if (!sedangUjian) return;
+
+        if (document.hidden) {
+            // Siswa keluar aplikasi
+            timestampKeluar = Date.now();
+        } else {
+            // Siswa kembali ke aplikasi
+            if (timestampKeluar == null) return;
+            const durasiMs = Date.now() - timestampKeluar;
+            const durasiDetik = durasiMs / 1000;
+            timestampKeluar = null;
+
+            const onlineSekarang = navigator.onLine === true;
+
+            // Kalau online saat kembali → curang
+            if (onlineSekarang) {
+                tanganiPelanggaran('online_saat_kembali');
+                return;
+            }
+
+            // Kalau keluar lebih dari batas → curang
+            if (durasiDetik > BATAS_DETIK_KELUAR) {
+                tanganiPelanggaran('keluar_lama', durasiDetik);
+                return;
+            }
+            // Selain itu, dianggap tidak apa-apa (misal buka notifikasi sebentar)
+        }
+    });
+
+    // ==========================================================
+    // TANGANI PELANGGARAN — RESET SEMUA
+    // ==========================================================
+    function tanganiPelanggaran(jenis, durasiDetik) {
+        if (!sedangUjian) return;
+        sedangUjian = false;
+        if (monitorInterval) clearInterval(monitorInterval);
+        timestampKeluar = null;
+
+        // Reset jawaban
+        jawabanSiswa = {};
+        indexSoalSekarang = 0;
+
+        // Pesan sesuai jenis pelanggaran
+        let pesan = '';
+        if (jenis === 'online_saat_aktif') {
+            pesan = 'Internet kamu terdeteksi nyala saat ujian berlangsung. ' +
+                    'Semua jawaban kamu dihapus dan kamu dikembalikan ke soal nomor 1. ' +
+                    'Matikan Wi-Fi dan data seluler dulu, lalu klik tombol di bawah.';
+        } else if (jenis === 'online_saat_kembali') {
+            pesan = 'Saat kamu kembali ke aplikasi, internet kamu terdeteksi nyala. ' +
+                    'Semua jawaban kamu dihapus dan kamu dikembalikan ke soal nomor 1. ' +
+                    'Matikan Wi-Fi dan data seluler dulu, lalu klik tombol di bawah.';
+        } else if (jenis === 'keluar_lama') {
+            const d = Math.round(durasiDetik);
+            pesan = `Kamu terdeteksi keluar dari aplikasi selama ${d} detik. ` +
+                    'Semua jawaban kamu dihapus dan kamu dikembalikan ke soal nomor 1. ' +
+                    'Jangan keluar aplikasi selama ujian berlangsung. Klik tombol di bawah untuk mulai lagi.';
+        }
+
+        aksiKunciSaatIni = 'online';
+        document.getElementById('judul-kunci').textContent = '🛑 Terdeteksi Pelanggaran';
+        document.getElementById('pesan-kunci').textContent = pesan;
+        document.getElementById('btn-kunci').textContent = 'Mulai Ulang dari Soal 1';
+        document.getElementById('kunci-curang').classList.add('tampil');
+    }
+
+    function aksiKunci() {
+        document.getElementById('kunci-curang').classList.remove('tampil');
+        if (aksiKunciSaatIni === 'online') {
+            if (navigator.onLine === true) {
+                alert('⚠️ Internet masih nyala. Matikan Wi-Fi dan data seluler dulu.');
+                document.getElementById('kunci-curang').classList.add('tampil');
+                return;
+            }
+            sedangUjian = true;
+            indexSoalSekarang = 0;
+            jawabanSiswa = {};
+            timestampKeluar = null;
+            pindahLayar('layar-ujian');
+            tampilkanSoal();
+            mulaiMonitorPelanggaran();
+        } else {
+            tampilkanSoal();
+        }
     }
 
     function tampilkanSoal() {
@@ -528,7 +613,6 @@
     function pilihJawaban(sid, h) { jawabanSiswa[sid] = h; tampilkanSoal(); }
     function soalSebelumnya() { if (indexSoalSekarang > 0) { indexSoalSekarang--; tampilkanSoal(); } }
 
-    // ============== FITUR LIHAT SEMUA SOAL ==============
     function bukaSemuaSoal() {
         renderGridSemuaSoal();
         document.getElementById('popup-semua-soal').classList.add('tampil');
@@ -549,18 +633,15 @@
         tampilkanSoal();
     }
 
-    // ============== VALIDASI SOAL BELUM LENGKAP ==============
     function bukaPopupBelumLengkap() {
         const kosong = daftarIndexKosong();
         document.getElementById('info-belum-lengkap').textContent =
             `Masih ada ${kosong.length} soal yang belum dijawab. Kamu harus mengisi semua soal sebelum bisa mengirim jawaban.`;
-
         const grid = document.getElementById('grid-nomor-kosong');
         grid.innerHTML = kosong.map(i => {
             const aktif = i === indexSoalSekarang;
             return `<div class="nomor-soal ${aktif ? 'aktif' : ''}" onclick="lompatKeSoalDariPopupKosong(${i})">${i + 1}</div>`;
         }).join('');
-
         document.getElementById('popup-belum-lengkap').classList.add('tampil');
     }
     function lompatKeSoalDariPopupKosong(i) {
@@ -573,21 +654,14 @@
         lompatKeSoalDariPopupKosong(kosong[0]);
     }
 
-    // ============== NAVIGASI ==============
     async function soalSelanjutnya() {
         if (indexSoalSekarang < daftarSoal.length - 1) {
             indexSoalSekarang++;
             tampilkanSoal();
             return;
         }
-
-        // Di soal terakhir → cek apakah lengkap
         const kosong = daftarIndexKosong();
-        if (kosong.length > 0) {
-            bukaPopupBelumLengkap();
-            return;
-        }
-        // Semua terisi → konfirmasi selesai
+        if (kosong.length > 0) { bukaPopupBelumLengkap(); return; }
         const ya = await konfirmasi('Semua soal sudah dijawab. Selesaikan ujian sekarang?', 'Konfirmasi', 'Ya, Selesai');
         if (!ya) return;
         sedangUjian = false;
@@ -595,51 +669,20 @@
         pindahLayar('layar-selesai-mengerjakan');
     }
 
-    window.addEventListener('online', function () {
-        if (sedangUjian) {
-            indexSoalSekarang = 0;
-            aksiKunciSaatIni = 'curang';
-            document.getElementById('judul-kunci').textContent = '⚠️ Terdeteksi Pelanggaran';
-            document.getElementById('pesan-kunci').textContent = 'Internet menyala saat ujian. Kamu dikembalikan ke soal nomor 1.';
-            document.getElementById('btn-kunci').textContent = 'Lanjutkan dari Soal 1';
-            document.getElementById('kunci-curang').classList.add('tampil');
-        }
-    });
-    document.addEventListener('visibilitychange', function () {
-        if (document.hidden && sedangUjian) {
-            paksaKeSoalPertama('Kamu keluar dari aplikasi saat ujian. Kembali ke soal nomor 1.');
-        }
-    });
-    function paksaKeSoalPertama(pesan) {
-        if (!sedangUjian) return;
-        indexSoalSekarang = 0;
-        aksiKunciSaatIni = 'curang';
-        document.getElementById('judul-kunci').textContent = '⚠️ Terdeteksi Pelanggaran';
-        document.getElementById('pesan-kunci').textContent = pesan;
-        document.getElementById('btn-kunci').textContent = 'Lanjutkan dari Soal 1';
-        document.getElementById('kunci-curang').classList.add('tampil');
-    }
-    function aksiKunci() {
-        document.getElementById('kunci-curang').classList.remove('tampil');
-        if (aksiKunciSaatIni === 'nonaktif') {
-            pindahLayar('layar-daftar-mapel');
-            muatSemuaData();
-        } else {
-            tampilkanSoal();
-        }
-    }
-
     async function kirimJawaban() {
-        // Validasi ulang: kalau masih ada yang kosong, kembalikan ke layar ujian
+        if (navigator.onLine !== true) {
+            alert('⚠️ Internet belum nyala!\n\nNyalakan Wi-Fi atau data seluler dulu, lalu klik "Kirim Jawaban" lagi.');
+            return;
+        }
         const kosong = daftarIndexKosong();
         if (kosong.length > 0) {
             sedangUjian = true;
             pindahLayar('layar-ujian');
             tampilkanSoal();
+            mulaiMonitorPelanggaran();
             bukaPopupBelumLengkap();
             return;
         }
-
         const jp = {}, je = {};
         let bp = 0, tp = 0, te = 0;
         daftarSoal.forEach(s => {
@@ -666,7 +709,7 @@
                 ? 'PG sudah dinilai otomatis. Essay akan dinilai guru.'
                 : 'Terima kasih, jawaban sudah diterima.';
             pindahLayar('layar-terkirim');
-        } catch (e) { alert('Gagal mengirim.'); }
+        } catch (e) { alert('Gagal mengirim. Pastikan internet stabil, lalu coba lagi.'); }
     }
     function kembaliKeDaftarSetelahKirim() {
         pindahLayar('layar-daftar-mapel');
