@@ -1860,4 +1860,74 @@
 <table><thead><tr><th>No</th><th>Nama Siswa</th><th>NISN</th>`;
         semuaMapelGlobal.forEach(m => { html += `<th>${escapeHtml(m.nama_mapel || '')}</th>`; });
         html += `</tr></thead><tbody>`;
-        siswa
+        siswaFiltered.forEach((s, i) => {
+            const nisn = s.nisn || s.kunci;
+            html += `<tr><td class="no">${i+1}</td><td class="nama">${escapeHtml(s.nama || '-')}</td><td class="nisn">${escapeHtml(nisn || '-')}</td>`;
+            semuaMapelGlobal.forEach(m => {
+                const h = hasilUjianGlobal[m.id] && hasilUjianGlobal[m.id][nisn];
+                html += `<td class="nilai">${escapeHtml(String(hitungNilaiAkhirSiswa(h)))}</td>`;
+            });
+            html += `</tr>`;
+        });
+        html += `</tbody></table><p style="font-size:9px;color:#666;margin-top:10px;">Dicetak: ${new Date().toLocaleString('id-ID')} · Total: ${siswaFiltered.length} siswa</p></body></html>`;
+        tampilkanOverlayCetak(html, 'Nilai ' + kelas);
+    }
+
+    function cetakPerKelasPerMapel(kelas, mapel, siswa) {
+        const dataHasilMapel = hasilUjianGlobal[mapel.id] || {};
+
+        const siswaFiltered = siswa.filter(s => dataHasilMapel[s.nisn || s.kunci]);
+
+        if (siswaFiltered.length === 0) {
+            alert('Belum ada siswa yang mengerjakan mapel ini di kelas tersebut.');
+            return;
+        }
+
+        let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; padding: 12px; font-size: 11px; }
+    h2 { text-align: center; margin-bottom: 4px; font-size: 14px; }
+    h3 { text-align: center; margin-bottom: 12px; font-size: 11px; font-weight: normal; color: #555; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #333; padding: 4px 5px; font-size: 10px; }
+    th { background: #f0f0f0; font-weight: bold; text-align: center; }
+    td.no { text-align: center; width: 22px; }
+    td.nama { min-width: 120px; }
+    td.nisn { width: 70px; text-align: center; }
+    td.nilai { text-align: center; width: 45px; }
+    td.benar { text-align: center; width: 55px; font-size: 9px; }
+    td.status { text-align: center; width: 75px; font-size: 9px; }
+    @media print { body { padding: 8px; } }
+</style></head><body>
+<h2>DAFTAR NILAI UJIAN</h2>
+<h3>Mapel: <b>${escapeHtml(mapel.nama_mapel || '')}</b> · ${escapeHtml(kelas)}${mapel.guru ? ' · Guru: ' + escapeHtml(mapel.guru) : ''}</h3>
+<table><thead><tr><th>No</th><th>Nama Siswa</th><th>NISN</th><th>Benar PG</th><th>Nilai PG</th><th>Nilai Essay</th><th>Nilai Akhir</th><th>Status</th></tr></thead><tbody>`;
+        siswaFiltered.forEach((s, i) => {
+            const nisn = s.nisn || s.kunci;
+            const h = dataHasilMapel[nisn] || null;
+            let benarPg = '-', nilaiPg = '-', nilaiEssay = '-', nilaiAkhir = '-', statusTeks = 'Belum Ujian';
+            if (h) {
+                const benar = h.benar_pg != null ? h.benar_pg : 0;
+                const total = h.total_pg != null ? h.total_pg : 0;
+                benarPg = `${benar}/${total}`;
+                nilaiPg = h.nilai_pg != null ? h.nilai_pg : '-';
+                nilaiEssay = h.nilai_essay != null ? h.nilai_essay : '-';
+                nilaiAkhir = hitungNilaiAkhirSiswa(h);
+                if (h.status === 'dinilai_guru') statusTeks = 'Sudah Dinilai';
+                else if (h.status === 'selesai') statusTeks = 'Selesai';
+                else if (h.status === 'menunggu_penilaian') statusTeks = 'Menunggu Essay';
+                else statusTeks = h.status || '-';
+            }
+            html += `<tr><td class="no">${i+1}</td><td class="nama">${escapeHtml(s.nama || '-')}</td><td class="nisn">${escapeHtml(nisn || '-')}</td><td class="benar"><b>${escapeHtml(benarPg)}</b></td><td class="nilai">${escapeHtml(String(nilaiPg))}</td><td class="nilai">${escapeHtml(String(nilaiEssay))}</td><td class="nilai"><b>${escapeHtml(String(nilaiAkhir))}</b></td><td class="status">${escapeHtml(statusTeks)}</td></tr>`;
+        });
+        html += `</tbody></table><p style="font-size:8px;color:#666;margin-top:8px;">Dicetak: ${new Date().toLocaleString('id-ID')} · Total: ${siswaFiltered.length} siswa</p></body></html>`;
+        tampilkanOverlayCetak(html, mapel.nama_mapel + ' - ' + kelas);
+    }
+
+    // ============ INIT ============
+    ambilParamAtauTanya();
+    muatDaftarMapel();
+    setTimeout(() => { document.getElementById('peringatan-guru').style.display = 'block'; }, 100);
+</script>
+</body>
+</html>
