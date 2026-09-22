@@ -226,7 +226,7 @@
             </div>
             <div class="field" id="field-kelas-akun" style="display:none;">
                 <label>Kelas</label>
-                <input type="text" id="input-kelas-akun" placeholder="mis. X TKJ 1" list="daftar-kelas-datalist">
+                <input type="text" id="input-kelas-akun" placeholder="mis. IX A" list="daftar-kelas-datalist">
                 <datalist id="daftar-kelas-datalist"></datalist>
                 <p style="font-size:11px;color:#64748b;margin-top:4px;">Ketik nama kelas bebas. Kelas yang sama akan otomatis digabung di rekap.</p>
             </div>
@@ -1657,7 +1657,7 @@
 
     function lihatTemplateAkun() {
         let contoh;
-        if (subTabAkun === 'siswa') contoh = [['Nama','NISN','Kelas'], ['Ahmad Fauzi','12345','X TKJ 1'], ['Rina Wati','12346','X TKJ 1']];
+        if (subTabAkun === 'siswa') contoh = [['Nama','NISN','Kelas'], ['Ahmad Fauzi','12345','IX A'], ['Rina Wati','12346','IX A']];
         else contoh = [['Nama','Username','Password'], ['Budi Santoso','budi','budi123'], ['Siti Aminah','siti','siti456']];
         document.getElementById('isi-template-akun').value = contoh.map(r => r.map(escapeCSV).join(',')).join('\n');
         document.getElementById('popup-template-akun').classList.add('tampil');
