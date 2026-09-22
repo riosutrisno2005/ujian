@@ -2,15 +2,27 @@
 <html lang="id">
 <head>
 <script>
-/* PAGAR CEPAT — TAHAP 1 */
+/* ═══════════════════════════════════════════════════════════════
+   PAGAR CEPAT — TAHAP 1 (v2)
+   Halaman hanya boleh dibuka dari aplikasi App Inventor.
+   ═══════════════════════════════════════════════════════════════ */
 (function () {
     var IZINKAN_BROWSER_UNTUK_UJI = false;
+
     if (IZINKAN_BROWSER_UNTUK_UJI) return;
-    var diAppInventor = (typeof window.AppInventor !== 'undefined');
+
+    var APP_KEY = "ujiann-2025-x7k9";
+
+    var p = new URLSearchParams(location.search);
+    var dariApp = false;
+
+    if (p.get('app') === APP_KEY) dariApp = true;
+    if (typeof window.AppInventor !== 'undefined') dariApp = true;
+
     var ua = navigator.userAgent || '';
-    var uaWebView = /;\s*wv\)/i.test(ua);
-    var bolehLanjut = diAppInventor || uaWebView;
-    if (!bolehLanjut) {
+    if (/;\s*wv\)/i.test(ua)) dariApp = true;
+
+    if (!dariApp) {
         var htmlTolak =
             '<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8">' +
             '<meta name="viewport" content="width=device-width,initial-scale=1">' +
@@ -26,6 +38,7 @@
             'Halaman ini hanya dapat dibuka melalui <b>aplikasi ujian</b>.<br><br>' +
             'Silakan buka aplikasi di HP Anda, bukan melalui browser.' +
             '</p></div></body></html>';
+
         try { document.open(); document.write(htmlTolak); document.close(); } catch (e) {}
         try { window.stop(); } catch (e) {}
         throw new Error('BLOCKED_BY_GUARD');
@@ -359,7 +372,7 @@
 </div>
 
 <script>
-    const FIREBASE_URL = "https://ujian-smk-6c744-default-rtdb.firebaseio.com";
+    const FIREBASE_URL = "https://admin-ffded-default-rtdb.firebaseio.com";
     const INTERVAL_POLL_LOCK_MS = 8000;
 
     async function ambilSoalSiswa(id) {
